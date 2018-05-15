@@ -28,6 +28,12 @@ from treys import Card, Deck, Evaluator
 from .player import Player
 from .utils import hand_to_str, format_action
 
+class GameError(Exception):
+    # should have called, but passed
+    # ?
+    def __init__(self, message, errors=None):
+        super().__init__(message)
+
 
 class TexasHoldemEnv(Env, utils.EzPickle):
   BLIND_INCREMENTS = [[10,25], [25,50], [50,100], [75,150], [100,200],
@@ -170,6 +176,8 @@ class TexasHoldemEnv(Env, utils.EzPickle):
 
     RAISE_AMT = [0, minraise]
     """
+    terminal = False
+
     if len(actions) != len(self._seats):
       raise error.Error('actions must be same shape as number of seats.')
 
@@ -181,7 +189,9 @@ class TexasHoldemEnv(Env, utils.EzPickle):
 
     players = [p for p in self._seats if p.playing_hand]
     if len(players) == 1:
-      raise error.Error('Round cannot be played with one player.')
+      terminal = True
+      # Round cannot be played with one player.
+      return self._get_current_step_returns(terminal)
 
     self._last_player = self._current_player
     self._last_actions = actions
@@ -189,7 +199,7 @@ class TexasHoldemEnv(Env, utils.EzPickle):
     if not self._current_player.playedthisround and len([p for p in players if not p.isallin]) >= 1:
       if self._current_player.isallin:
         self._current_player = self._next(players, self._current_player)
-        return self._get_current_step_returns(False)
+        return self._get_current_step_returns(terminal)
 
       move = self._current_player.player_move(
           self._output_state(self._current_player), actions[self._current_player.player_id])
@@ -226,7 +236,6 @@ class TexasHoldemEnv(Env, utils.EzPickle):
     else:
       self._resolve(players)
 
-    terminal = False
     if self._round == 4:
       terminal = True
       self._resolve_round(players)
@@ -387,7 +396,10 @@ class TexasHoldemEnv(Env, utils.EzPickle):
       for pot_idx,_ in enumerate(temp_pots):
         # find players involved in given side_pot, compute the winner(s)
         pot_contributors = [p for p in players if p.lastsidepot >= pot_idx]
-        winning_rank = min([p.handrank for p in pot_contributors])
+        handranks = [p.handrank for p in pot_contributors]
+        if len([p.handrank for p in pot_contributors]) == 0:
+            raise GameError('Error. To investigate/fix...')
+        winning_rank = min(handranks)
         winning_players = [p for p in pot_contributors if p.handrank == winning_rank]
 
         for player in winning_players:

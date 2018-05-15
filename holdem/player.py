@@ -56,7 +56,7 @@ class Player(object):
     self.lastsidepot = 0
     self._seat = -1
     self.handrank = -1
-    self.errors = 0
+    self.error_penalty = 2
 
     # flags for table management
     self.emptyplayer = emptyplayer
@@ -117,31 +117,31 @@ class Player(object):
 
     if (tocall == 0) and (action_idx!=Player.FOLD):
       if action_idx not in [Player.CHECK, Player.RAISE]:
-          self.errors -= 1
+          self.stack -= self.error_penalty
           raise ActionError('player {}: action must be check (0) or raise (2) but was {}'.format(self.player_id, action_idx))
       if action_idx == Player.RAISE:
         if raise_amount < minraise:
-          self.errors -= 1
+          self.stack -= self.error_penalty
           raise BidError('player {}: raise must be greater than minraise {}'.format(self.player_id, minraise))
         if raise_amount > self.stack:
-          self.errors -= 1
+          self.stack -= self.error_penalty
           raise BidError('player {}: raise must be less than maxraise {}'.format(self.player_id, self.stack))
         move_tuple = ('raise', raise_amount)
       elif action_idx == Player.CHECK:
         move_tuple = ('check', 0)
       else:
-        self.errors -= 1
+        self.stack -= self.error_penalty
         raise ActionError('player {}: invalid action ({}) must be check (0) or raise (2)'.format(self.player_id, action_idx))
     else:
       if action_idx not in [Player.RAISE, Player.CALL, Player.FOLD]:
-        self.errors -= 1
+        self.stack -= self.error_penalty
         raise ActionError('player {}: invalid action ({}) must be raise (2), call (1), or fold (3)'.format(self.player_id, action_idx))
       if action_idx == Player.RAISE:
         if raise_amount < minraise:
-          self.errors -= 1
+          self.stack -= self.error_penalty
           raise BidError('player {}: raise must be greater than minraise {}'.format(self.player_id, minraise))
         if raise_amount > self.stack:
-          self.errors -= 1
+          self.stack -= self.error_penalty
           raise BidError('player {}: raise must be less than maxraise {}'.format(self.player_id, self.stack))
         move_tuple = ('raise', raise_amount)
       elif action_idx == Player.CALL:
@@ -149,6 +149,6 @@ class Player(object):
       elif action_idx == Player.FOLD:
         move_tuple = ('fold', -1)
       else:
-        self.errors -= 1
+        self.stack -= self.error_penalty
         raise ActionError('player {}: invalid action ({}) must be raise (2), call (1), or fold (3)'.format(self.player_id, action_idx))
     return move_tuple
